@@ -1,0 +1,213 @@
+# -*- coding: utf-8 -*-
+
+import Tkinter as tk   # python2
+import ttk
+
+font = ('Calibri', 12)
+
+''' 
+############################################################################### 
+#                                 Model                                       # 
+###############################################################################
+'''
+
+class Model:
+    def __init__(self, shared_keys, *args, **kwargs):
+        # There shall be a variable, which is updated every time the entry
+        # of the combobox is changed
+        self.model_keys = shared_keys
+        print "Model: {0}".format(self.model_keys["Inputformat"].get())
+
+
+''' 
+############################################################################### 
+#                               Controller                                    # 
+###############################################################################
+'''
+
+# controller handles the following: shown pages (View), calculations 
+# (to be implemented), datasets (Model), communication
+class PageControl(tk.Tk):
+
+    ''' Initialisations '''
+    def __init__(self, *args, **kwargs):
+        tk.Tk.__init__(self, *args, **kwargs) # init
+        tk.Tk.wm_title(self, "MCR-ALS-Converter") # title
+        
+        # in self.shared_keys, everything should be storeable checkboxstatus,
+        # entry values, combobox choices etc. hence the tk.StringVar() for each
+        # observable action
+        self.shared_keys = {"Inputformat": tk.StringVar(),
+                            "Outputformat": tk.StringVar()}        
+        
+        container = self.create_frame() 
+        self.create_menubar(container)
+
+        self.frames = {}
+        for F in (StartPage, PageOne, PageTwo):
+            page_name = F.__name__
+            frame = F(parent = container, controller = self)
+            self.frames[page_name] = frame
+
+            # put all of the pages in the same location;
+            # the one on the top of the stacking order
+            # will be the one that is visible.
+            frame.grid(row=0, column=0, sticky="nsew")
+
+        self.show_frame("StartPage")
+        
+        # Model() shall contain all datasets one whishes to manipulate
+        self.model = Model(self.shared_keys)        
+        
+        # drivers would be used, to set variables in the model, i guess
+        self.drivers = Drivers()
+        
+
+    ''' Methods '''
+    # frame, which is the container for all pages
+    def create_frame(self):        
+        # the container is where we'll stack a bunch of frames
+        # on top of each other, then the one we want visible
+        # will be raised above the others
+        container = ttk.Frame(self)
+        container.pack(side="top", fill="both", expand=True)
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+        return(container)
+  
+      
+    # overarching menubar, seen by all pages
+    def create_menubar(self, container):       
+        # the menubar is going to be seen by all pages       
+        menubar = tk.Menu(container)
+        menubar.add_command(label = "Quit", command = lambda: app.destroy())
+        tk.Tk.config(self, menu = menubar)
+
+
+    # function of the controller, to show the desired frame
+    def show_frame(self, page_name):
+        '''Show a frame for the given page name'''
+        frame = self.frames[page_name]
+        frame.tkraise()
+        
+    def change_data_in_model(self):
+        Model(self.shared_keys)
+
+
+''' 
+############################################################################### 
+#                                   View                                      # 
+###############################################################################
+'''
+
+
+class StartPage(ttk.Frame):
+
+    ''' Initialisations '''
+    def __init__(self, parent, controller):
+        ttk.Frame.__init__(self, parent)
+        self.controller = controller
+        
+        self.labels()
+        self.buttons()
+
+
+    ''' Widgets '''        
+    def labels(self):
+        label = tk.Label(self, text="This is the start page", font=font)
+        label.pack(side="top", fill="x", pady=10)
+
+    def buttons(self):
+        button1 = tk.Button(self, text="Go to Page One",
+                            command=lambda: self.controller.show_frame("PageOne"))
+        button2 = tk.Button(self, text="Go to Page Two",
+                            command=lambda: self.controller.show_frame("PageTwo"))
+        button_close = tk.Button(self, text="Close",
+                                command=lambda: app.destroy())                    
+        button1.pack(side="top", fill="x", pady=10)
+        button2.pack(side="top", fill="x", pady=10)
+        button_close.pack(side="top", fill="x", pady=10)
+
+
+class PageOne(ttk.Frame):
+
+    ''' Initialisations '''
+    def __init__(self, parent, controller):
+        ttk.Frame.__init__(self, parent)
+        self.controller = controller
+        
+        self.labels()
+        self.buttons()
+        self.combobox()
+        self.dummy_entry()
+        
+    ''' Widgets '''
+    def labels(self):
+        label = tk.Label(self, text="On this page, you can read data", font=font)
+        label.pack(side="top", fill="x", pady=10)
+    
+    def buttons(self):    
+        button_forward = tk.Button(self, text="Next Page >>",
+                                command=lambda: self.controller.show_frame("PageTwo"))
+        button_back = tk.Button(self, text="<< Go back",
+                                command=lambda: self.controller.show_frame("StartPage"))
+        button_home = tk.Button(self, text="Home",
+                                command=lambda: self.controller.show_frame("StartPage"))
+        button_close = tk.Button(self, text="Close",
+                                command=lambda: app.destroy())                        
+        button_forward.pack(side="top", fill="x", pady=10)
+        button_back.pack(side="top", fill="x", pady=10)
+        button_home.pack(side="top", fill="x", pady=10)
+        button_close.pack(side="top", fill="x", pady=10)
+        
+    def combobox(self):
+        entries = ("Entry 01", "Entry 02", "Entry 03") 
+        self.combobox = ttk.Combobox(self, state = 'readonly', values = entries)
+        self.combobox.bind('<<ComboboxSelected>>', self.selected_entry)
+        self.combobox.pack(side="top", fill="x", pady=10)
+        
+    def dummy_entry(self):
+        self.dummy = ttk.Entry(self, textvariable = self.controller.shared_keys["Inputformat"])
+                
+
+
+    ''' Commands and Bindings '''
+    def selected_entry(self, event):
+        self.dummy.delete(0, tk.END)
+        self.dummy.insert(0, self.combobox.get())
+        inputformat = self.controller.shared_keys["Inputformat"].get()
+        print "Selected Entry: {0}".format(inputformat)
+        self.controller.change_data_in_model()
+        
+
+class PageTwo(ttk.Frame):
+
+    ''' Initialisations '''
+    def __init__(self, parent, controller):
+        ttk.Frame.__init__(self, parent)
+        self.controller = controller
+        
+        self.labels()
+        self.buttons()
+        
+        
+    ''' Widgets '''        
+    def labels(self):
+        label = tk.Label(self, text="This is page 2", font=font)
+        label.pack(side="top", fill="x", pady=10)
+        
+    def buttons(self):
+        button_back = tk.Button(self, text="<< Go back",
+                                command=lambda: self.controller.show_frame("PageOne"))
+        button_home = tk.Button(self, text="Home",
+                                command=lambda: self.controller.show_frame("StartPage"))
+        button_close = tk.Button(self, text="Close",
+                                command=lambda: app.destroy())                        
+        button_back.pack(side="top", fill="x", pady=10)
+        button_home.pack(side="top", fill="x", pady=10)
+        button_close.pack(side="top", fill="x", pady=10)
+        
+
+if __name__ == "__main__":
+    app = PageControl()
+    app.mainloop()
